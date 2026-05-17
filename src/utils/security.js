@@ -32,21 +32,43 @@ export const generateHMAC = (payload) => {
 export const sanitizeEnterprisePrompt = (rawPrompt) => {
   if (!rawPrompt) return '';
   
-  // Regex to match emails
+  // 1. Emails
   const emailRegex = /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/gi;
-  // Regex to match monetary values (e.g., $100, $1,000.00)
-  const moneyRegex = /(\$[0-9,]+(\.[0-9]{2})?)/gi;
+  
+  // 2. Monetary values (e.g., $100, $1,000.00, €50, £20.50)
+  const moneyRegex = /([$€£¥][0-9,]+(\.[0-9]{2})?)/gi;
+  
+  // 3. Phone Numbers (US/International standard formats)
+  const phoneRegex = /(\+?\d{1,3}[-.\s]?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4})/g;
+  
+  // 4. Social Security Numbers (SSN) - standard US format
+  const ssnRegex = /\b(\d{3}-\d{2}-\d{4})\b/g;
+  
+  // 5. Credit Card Numbers (13-19 digits, optional spaces/dashes)
+  const ccRegex = /\b(?:\d[ -]*?){13,19}\b/g;
+  
+  // 6. IPv4 Addresses
+  const ipv4Regex = /\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b/g;
 
   let sanitized = rawPrompt;
 
-  // Replace emails
-  sanitized = sanitized.replace(emailRegex, (match) => {
-    return encryptEntity(match);
-  });
+  // Array of regexes to process
+  const sensitiveRegexes = [
+    emailRegex,
+    moneyRegex,
+    phoneRegex,
+    ssnRegex,
+    ccRegex,
+    ipv4Regex
+  ];
 
-  // Replace monetary values
-  sanitized = sanitized.replace(moneyRegex, (match) => {
-    return encryptEntity(match);
+  // Process all patterns
+  sensitiveRegexes.forEach(regex => {
+    sanitized = sanitized.replace(regex, (match) => {
+      // Small check to prevent encrypting numbers that are too small to be CCs but match the vague ccRegex
+      if (regex === ccRegex && match.replace(/[- ]/g, '').length < 13) return match;
+      return encryptEntity(match);
+    });
   });
 
   return sanitized;
