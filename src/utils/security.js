@@ -1,7 +1,7 @@
 import CryptoJS from 'crypto-js';
 
-const CLIENT_ENCRYPTION_KEY = 'super-secret-client-key-123';
-const HMAC_SHARED_SECRET = 'enterprise-shared-hmac-secret-456';
+const CLIENT_ENCRYPTION_KEY = process.env.NEXT_PUBLIC_CLIENT_ENCRYPTION_KEY || 'fallback-key';
+const HMAC_SHARED_SECRET = process.env.NEXT_PUBLIC_HMAC_SHARED_SECRET || 'fallback-hmac';
 
 export const encryptEntity = (text) => {
   const ciphertext = CryptoJS.AES.encrypt(text, CLIENT_ENCRYPTION_KEY).toString();
@@ -12,16 +12,16 @@ export const decryptEntity = (encryptedToken) => {
   try {
     // Expected format: [ENC:ciphertext]
     const match = encryptedToken.match(/^\[ENC:(.*)\]$/);
-    if (!match) return encryptedToken; // Return raw if not in expected format
+    if (!match) return '[DECRYPTION_FAILED]'; // Return fail token if not in expected format
     
     const ciphertext = match[1];
     const bytes = CryptoJS.AES.decrypt(ciphertext, CLIENT_ENCRYPTION_KEY);
     const originalText = bytes.toString(CryptoJS.enc.Utf8);
     
-    return originalText || encryptedToken; // Return original if decryption fails
+    return originalText || '[DECRYPTION_FAILED]'; // Return fail token if decryption fails
   } catch (error) {
     console.error("Decryption error:", error);
-    return encryptedToken;
+    return '[DECRYPTION_FAILED]';
   }
 };
 

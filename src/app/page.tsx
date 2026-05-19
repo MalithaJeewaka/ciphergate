@@ -5,7 +5,7 @@ import { sanitizeEnterprisePrompt, generateHMAC, decryptEntity } from "@/utils/s
 
 export default function Home() {
   const [input, setInput] = useState("");
-  const [networkTraffic, setNetworkTraffic] = useState<{ payload: string; signature: string } | null>(null);
+  const [networkTraffic, setNetworkTraffic] = useState<{ payload: string; signature: string; timestamp: number; nonce: string } | null>(null);
   const [finalOutput, setFinalOutput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -25,18 +25,21 @@ export default function Home() {
 
     // 1. Sanitize & Encrypt
     const encryptedPayload = sanitizeEnterprisePrompt(input);
-    const signature = generateHMAC(encryptedPayload);
+    const timestamp = Date.now();
+    const nonce = crypto.randomUUID();
+    const signatureData = `${encryptedPayload}|${timestamp}|${nonce}`;
+    const signature = generateHMAC(signatureData);
 
     // Simulated delay for UI animation
     setTimeout(() => {
-      setNetworkTraffic({ payload: encryptedPayload, signature });
+      setNetworkTraffic({ payload: encryptedPayload, signature, timestamp, nonce });
     }, 400);
 
     try {
       const response = await fetch("/api/proxy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ payload: encryptedPayload, signature }),
+        body: JSON.stringify({ payload: encryptedPayload, signature, timestamp, nonce }),
       });
 
       const data = await response.json();
@@ -234,10 +237,14 @@ export default function Home() {
                       </svg>
                     </div>
 
-                    {/* Signature Block */}
+                    {/* Metadata & Signature Block */}
                     <div className="relative border border-indigo-500/30 bg-black/40 p-4">
                       <div className="absolute -top-3 left-4 bg-slate-950 px-2 font-mono text-[10px] text-indigo-400 tracking-widest uppercase border border-indigo-500/30">
-                        Signature // HMAC-SHA256
+                        Metadata & Signature // Replay Protected
+                      </div>
+                      <div className="font-mono text-[10px] text-indigo-200/50 mb-2">
+                        Timestamp: {networkTraffic.timestamp}<br/>
+                        Nonce: {networkTraffic.nonce}
                       </div>
                       <div className="font-mono text-xs text-indigo-200/70 break-all">
                         {networkTraffic.signature}
